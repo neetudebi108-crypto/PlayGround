@@ -6,6 +6,7 @@ import { UI } from './ui.js';
 import { Sky, ParticleSystem, TracerSystem } from './effects.js';
 import { Player } from './player.js';
 import { BotManager } from './bots.js';
+import { Mods } from './mods.js';
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -48,6 +49,7 @@ export class Game {
     this.isTouch = this.ui.isTouch;
     this._bindUI();
     this._bindInput();
+    this.mods = new Mods(this);
     this.animate = this.animate.bind(this);
     this.init().catch((err) => {
       console.error(err);
@@ -266,6 +268,7 @@ export class Game {
       this.matchGroup = null;
     }
     if (this.botManager) this.botManager.clear();
+    if (this.mods) this.mods._target = null;
     if (this.player) this.player.setActive(false);
     this.loot = [];
     this.zone = null;
@@ -437,6 +440,7 @@ export class Game {
       crouch: this.crouchToggle
     };
     this.jumpQueued = false;
+    this.mods?.update(dt);
     this.player.update(dt, input, this.time);
     this.botManager.update(dt);
     this._updateZone(dt);

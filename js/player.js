@@ -383,6 +383,7 @@ export class Player {
     this.audio.shot(def.audio);
 
     this.camera.updateMatrixWorld(true);
+    const origin = this.camera.position.clone();
     const dir = new THREE.Vector3();
     this.camera.getWorldDirection(dir);
     const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
@@ -396,7 +397,11 @@ export class Player {
     dir.addScaledVector(up, (Math.random() - 0.5) * spread * 2);
     dir.normalize();
 
-    const origin = this.camera.position.clone();
+    // Mod suite: silent aim bends the bullet to the target while the view stays put.
+    const mods = this.game.mods;
+    const silent = mods?.silentTarget(def.range);
+    if (silent) dir.copy(silent.point).sub(origin).normalize();
+
     this.raycaster.set(origin, dir);
     this.raycaster.far = def.range;
     const targets = this.game.botManager ? this.game.botManager.hitMeshes : [];
@@ -414,9 +419,10 @@ export class Player {
       end = hit.point.clone();
       const bot = hit.object.userData.bot;
       if (bot && bot.alive) {
-        const head = !!hit.object.userData.isHead;
+        const head = !!mods?.state.autoHeadshot || !!hit.object.userData.isHead;
         const falloff = 1 - clamp(hit.distance / def.range, 0, 1) * 0.16;
-        const damage = def.damage * (head ? def.headMult : 1) * falloff;
+        let damage = def.damage * (head ? def.headMult : 1) * falloff;
+        if (mods?.state.aimkill) damage = 1000;
         p.hits += 1;
         p.damage += damage;
         this.game.hitBot(bot, damage, head, hit.point, def.name);

@@ -29,7 +29,11 @@
         <strong id="zone-timer">00:30</strong>
       </div>
       <div id="fps-meter" class="fps-meter"></div>
-      <button id="btn-pause" class="hud-pause" type="button" aria-label="Pause match">II</button>
+      <div class="hud-mini-row">
+        <button id="btn-pause" class="hud-pause" type="button" aria-label="Pause match">II</button>
+        <button id="btn-mods" class="hud-pause hud-mods" type="button" aria-label="Open mod menu">⌁</button>
+      </div>
+      <div id="mod-status" class="mod-status hidden"><i></i><span>MODS</span><b id="mod-status-text"></b></div>
     </div>
 
     <div class="hud-top-center">
@@ -113,6 +117,7 @@
         <div><kbd>RMB</kbd> AIM</div>
         <div><kbd>R</kbd> RELOAD</div>
         <div><kbd>ESC</kbd> PAUSE</div>
+        <div><kbd>\</kbd> MOD MENU</div>
       </div>
     </div>
 
@@ -157,6 +162,7 @@
       </div>
       <div class="topbar-right">
         <div class="online-pill"><i></i> 24 PLAYERS</div>
+        <button id="mods-lobby-btn" class="ghost-btn mods-entry" type="button">⌁ MODS</button>
         <button id="lobby-settings-btn" class="ghost-btn">SETTINGS</button>
         <div class="profile-chip">
           <span class="avatar">R</span>
@@ -358,6 +364,7 @@
       </div>
       <div class="modal-actions">
         <button id="resume-btn" class="primary-btn" type="button">RESUME MATCH</button>
+        <button id="mods-pause-btn" class="ghost-btn" type="button">MOD MENU</button>
         <button id="quit-btn" class="ghost-btn danger" type="button">QUIT TO LOBBY</button>
       </div>
     </div>
@@ -396,6 +403,94 @@
       <div class="result-actions">
         <button id="play-again-btn" class="primary-btn" type="button">PLAY AGAIN</button>
         <button id="back-lobby-btn" class="ghost-btn" type="button">BACK TO LOBBY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MOD MENU ================= -->
+  <div id="mod-menu" class="modal mod-modal hidden" role="dialog" aria-modal="true" aria-labelledby="mod-title">
+    <div class="modal-card mod-card">
+      <div class="mod-head">
+        <div>
+          <div class="panel-kicker">RESTRICTED // LOCAL SANDBOX</div>
+          <h2 id="mod-title">MOD <span>MENU</span></h2>
+        </div>
+        <button id="mod-close" class="mod-close" type="button" aria-label="Close mod menu">×</button>
+      </div>
+
+      <div id="mod-lock" class="mod-lock">
+        <div class="mod-lock-badge"><i></i><span>SECURE ACCESS</span></div>
+        <p>Enter the 4-digit access code to unlock the FIREZONE mod suite.</p>
+        <form id="mod-form" class="mod-code-row" autocomplete="off">
+          <input id="mod-password" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••" aria-label="Access code" />
+          <button id="mod-unlock" class="primary-btn" type="submit">UNLOCK</button>
+        </form>
+        <div id="mod-error" class="mod-error" role="alert"></div>
+        <small class="mod-fineprint">OFFLINE MATCHES ONLY • NOTHING LEAVES THIS DEVICE</small>
+      </div>
+
+      <div id="mod-panel" class="mod-panel hidden">
+        <div class="mod-topline">
+          <span class="mod-live"><i></i> SESSION UNLOCKED</span>
+          <span id="mod-active-count">0 ACTIVE</span>
+        </div>
+
+        <div class="mod-grid">
+          <button class="mod-toggle" data-mod="aimbot" type="button" aria-pressed="false">
+            <span class="mod-icon">◎</span>
+            <span class="mod-copy"><strong>AIMBOT</strong><small>Smooth aim assist on the nearest exposed enemy</small></span>
+            <i class="mod-switch"></i>
+          </button>
+
+          <button class="mod-toggle" data-mod="silentAim" type="button" aria-pressed="false">
+            <span class="mod-icon">≈</span>
+            <span class="mod-copy"><strong>SILENT AIM</strong><small>Bends bullets to the target without moving your view</small></span>
+            <i class="mod-switch"></i>
+          </button>
+
+          <button class="mod-toggle" data-mod="autoHeadshot" type="button" aria-pressed="false">
+            <span class="mod-icon">✛</span>
+            <span class="mod-copy"><strong>AUTO HEADSHOT</strong><small>Every confirmed hit is treated as a headshot</small></span>
+            <i class="mod-switch"></i>
+          </button>
+
+          <button class="mod-toggle" data-mod="aimlock" type="button" aria-pressed="false">
+            <span class="mod-icon">⌖</span>
+            <span class="mod-copy"><strong>AIMLOCK</strong><small>Instantly snaps onto the nearest enemy in the cone</small></span>
+            <i class="mod-switch"></i>
+          </button>
+
+          <button class="mod-toggle" data-mod="aimkill" type="button" aria-pressed="false">
+            <span class="mod-icon">☠</span>
+            <span class="mod-copy"><strong>AIMKILL</strong><small>Any connecting bullet instantly executes the target</small></span>
+            <i class="mod-switch"></i>
+          </button>
+
+          <button class="mod-toggle" data-mod="hologram" type="button" aria-pressed="false">
+            <span class="mod-icon">◇</span>
+            <span class="mod-copy"><strong>HOLOGRAM</strong><small>Cyan x-ray silhouettes reveal enemies through walls</small></span>
+            <i class="mod-switch"></i>
+          </button>
+        </div>
+
+        <div class="mod-tune">
+          <label class="mod-range">
+            <span>AIM CONE <b id="mod-fov-val">38°</b></span>
+            <input id="mod-fov" type="range" min="8" max="90" step="1" value="38" />
+            <small>Field of view used to acquire targets</small>
+          </label>
+          <label class="mod-range">
+            <span>AIM SMOOTHING <b id="mod-smooth-val">13</b></span>
+            <input id="mod-smooth" type="range" min="2" max="40" step="1" value="13" />
+            <small>Lower is snappier; higher is more subtle</small>
+          </label>
+        </div>
+
+        <div class="mod-actions">
+          <button id="mod-reset" class="ghost-btn" type="button">RESET ALL</button>
+          <button id="mod-done" class="primary-btn" type="button">BACK TO MATCH</button>
+        </div>
+        <div class="mod-warning">OFFLINE SANDBOX ONLY — AIMBOT / AIMLOCK / AIMKILL AFFECT BOTS, NOT REAL PLAYERS.</div>
       </div>
     </div>
   </div>
