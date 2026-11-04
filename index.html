@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f0c" />
+  <title>FREEFALL — Island Ops</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game" aria-label="FREEFALL game viewport"></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <!-- ══════════════════════════════════════════════════════════ HUD -->
+    <section id="hud" class="hud hidden" aria-label="Heads up display">
+      <div class="hud-top-left">
+        <div class="mini-brand"><span class="mini-brand-mark"></span><b>FREEFALL</b><em>ISLAND OPS</em></div>
+        <div class="alive-row"><span class="dot-live"></span><span id="aliveCount">24</span><span>HOSTILES ACTIVE</span></div>
+        <div id="modChips" class="mod-chips"></div>
+      </div>
+
+      <div class="compass-wrap">
+        <canvas id="compass" width="760" height="44"></canvas>
+        <div class="compass-needle"></div>
+      </div>
+
+      <div id="objective" class="objective">
+        <span class="obj-kicker">PRIMARY OBJECTIVE</span>
+        <strong id="objectiveText">ELIMINATE 20 HOSTILES</strong>
+        <span id="objectiveSub">0 / 20</span>
+      </div>
+
+      <div class="hud-top-right">
+        <div class="minimap-shell">
+          <div class="minimap-ring">
+            <canvas id="minimap" width="220" height="220"></canvas>
+            <span class="map-n">N</span>
+          </div>
+          <div class="zone-pill"><span class="zone-dot"></span><span id="zoneTimer">ZONE 02:00</span></div>
+        </div>
+        <div id="killfeed" class="killfeed"></div>
+      </div>
+
+      <div class="hud-bottom-left">
+        <div class="operator-chip">
+          <svg viewBox="0 0 40 40" class="op-avatar" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="#17201a" stroke="#ff7424" stroke-width="1.4"/><path d="M13 29c0-5 3-7 7-7s7 2 7 7" fill="#2b362c"/><circle cx="20" cy="15" r="5" fill="#93a08b"/><path d="M14 26h12v3H14z" fill="#ff7424" opacity=".8"/></svg>
+          <div>
+            <span class="op-name">RONIN</span>
+            <span class="op-sub">OPERATOR ONLINE</span>
+          </div>
+        </div>
+        <div class="stat-stack">
+          <div class="stat-row">
+            <span class="stat-label">HEALTH</span>
+            <div class="bar"><i id="healthBar" style="width:100%"></i></div>
+            <span id="healthVal" class="stat-value">100</span>
+          </div>
+          <div class="stat-row armor">
+            <span class="stat-label">ARMOR</span>
+            <div class="bar"><i id="armorBar" style="width:100%"></i></div>
+            <span id="armorVal" class="stat-value">50</span>
+          </div>
+          <div class="stat-row stamina">
+            <span class="stat-label">STAMINA</span>
+            <div class="bar"><i id="staminaBar" style="width:100%"></i></div>
+            <span id="staminaVal" class="stat-value">100</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-bottom-right">
+        <div class="weapon-stack">
+          <div class="weapon-top"><span id="weaponType">ASSAULT RIFLE</span><span class="firemode">AUTO</span></div>
+          <div class="weapon-name" id="weaponName">VX-9 HAVOC</div>
+          <div class="ammo-line"><span id="ammoMag">30</span><span class="ammo-sep">/</span><span id="ammoReserve">180</span></div>
+          <div class="ammo-ticks" id="ammoTicks"></div>
+        </div>
+        <div class="weapon-slots">
+          <div class="wslot active" data-slot="0"><span>1</span><b>VX-9</b><em>RIFLE</em></div>
+          <div class="wslot" data-slot="1"><span>2</span><b>HORNET</b><em>SMG</em></div>
+        </div>
+      </div>
+
+      <div id="crosshair" class="crosshair">
+        <i class="ch ch-t"></i><i class="ch ch-b"></i><i class="ch ch-l"></i><i class="ch ch-r"></i>
+        <span class="ch-dot"></span>
+        <span class="ch-ring"></span>
+        <span class="hitmarker"></span>
+        <span class="target-brackets"><i></i><i></i><i></i><i></i></span>
+        <span id="targetLabel" class="target-label"></span>
+      </div>
+
+      <div id="damageDir" class="damage-dir"></div>
+      <div id="damageFlash" class="damage-flash"></div>
+      <div id="toast" class="toast"></div>
+      <div id="statusBanner" class="status-banner"></div>
+      <div id="dmgLayer" class="dmg-layer"></div>
+
+      <div class="hint-bar" id="hintBar">
+        <span><kbd>WASD</kbd> MOVE</span><span><kbd>SHIFT</kbd> SPRINT</span><span><kbd>RMB</kbd> AIM</span><span><kbd>R</kbd> RELOAD</span><span><kbd>M</kbd> MOD MENU</span><span><kbd>ESC</kbd> PAUSE</span>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ LOBBY -->
+    <section id="lobby" class="lobby" aria-label="Main lobby">
+      <div class="lobby-shade"></div>
+      <div class="lobby-scan"></div>
+
+      <header class="lobby-top">
+        <div class="brand">
+          <span class="brand-glyph"><i></i></span>
+          <div class="brand-text"><b>FREEFALL</b><em>ISLAND OPS</em></div>
+        </div>
+        <div class="top-meta">
+          <div class="ping"><span class="ping-dot"></span>24 MS</div>
+          <div class="season-tag">SEASON <b>04</b> · AFTERSHOCK</div>
+          <button id="settingsBtn" class="icon-btn" aria-label="Settings" title="Settings">
+            <svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06A2 2 0 1 1 7.07 4.13l.06.06A1.7 1.7 0 0 0 9 4.53h.08a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="lobby-main">
+        <div class="hero">
+          <div class="eyebrow"><span></span> NEW FRONTIER · OPEN WORLD SURVIVAL</div>
+          <h1>FREE<span>FALL</span></h1>
+          <div class="hero-sub"><b>ISLAND OPS</b><span class="hero-line"></span><span>20 OPERATORS. ONE ISLAND.</span></div>
+          <p class="hero-copy">Drop into a living island. Hunt hostile squads across the market, the relay ridge and the old docks. Loot up, lock in, and be the last operator standing.</p>
+
+          <div class="mode-row" role="group" aria-label="Game mode">
+            <button class="mode-card selected" data-mode="solo">
+              <span class="mode-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5.8 20c.5-4 2.6-6 6.2-6s5.7 2 6.2 6"/></svg></span>
+              <span class="mode-copy"><b>SOLO SURVIVAL</b><em>Eliminate 20 hostiles</em></span>
+              <span class="mode-check"></span>
+            </button>
+            <button class="mode-card" data-mode="training">
+              <span class="mode-icon"><svg viewBox="0 0 24 24"><path d="M4 12h16M12 4v16"/><circle cx="12" cy="12" r="8.5"/></svg></span>
+              <span class="mode-copy"><b>TRAINING GROUND</b><em>Endless respawns · no fail</em></span>
+              <span class="mode-check"></span>
+            </button>
+          </div>
+
+          <div class="lobby-actions">
+            <button id="startBtn" class="start-btn" aria-label="Start Game">
+              <span class="start-glow"></span>
+              <span class="start-label">START GAME</span>
+              <span class="start-meta">DEPLOY TO ISLAND</span>
+              <span class="start-arrow">→</span>
+            </button>
+            <button id="modMenuLobbyBtn" class="mod-btn">
+              <span class="mod-btn-icon"><i></i></span>
+              <span><b>MOD MENU</b><em>OPEN SANDBOX TOOLS</em></span>
+              <kbd>INSERT</kbd>
+            </button>
+          </div>
+          <div class="lobby-note"><span class="pulse"></span> OFFLINE SIMULATION · AI OPPONENTS ONLY</div>
+        </div>
+
+        <aside class="lobby-side">
+          <section class="panel operator-panel">
+            <div class="panel-head"><span>ACTIVE OPERATOR</span><em>LVL 47</em></div>
+            <div class="operator-body">
+              <div class="operator-portrait">
+                <svg viewBox="0 0 120 150" aria-hidden="true">
+                  <defs><linearGradient id="opg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3d4c3c"/><stop offset="1" stop-color="#121711"/></linearGradient></defs>
+                  <path d="M22 150c1-28 14-42 38-42s37 14 38 42H22Z" fill="url(#opg)"/>
+                  <path d="M48 88h24v18H48z" fill="#2a3329"/>
+                  <path d="M34 40c0-18 11-29 26-29s26 11 26 29v13c0 18-11 29-26 29S34 71 34 53V40Z" fill="#242d23"/>
+                  <path d="M34 45c4-14 10-21 26-21s22 7 26 21v5H34v-5Z" fill="#101510"/>
+                  <path d="M39 49h42v12H39z" fill="#05110f" stroke="#ff7424" stroke-width="1.5"/>
+                  <path d="M44 55h32" stroke="#ff8b4a" stroke-width="2" opacity=".8"/>
+                  <path d="M52 81h16v8H52z" fill="#1b221a"/>
+                  <path d="M24 150c2-24 12-38 28-42l8 17 8-17c16 4 26 18 28 42H24Z" fill="#263025" opacity=".9"/>
+                  <path d="M60 108v42" stroke="#0e120d" stroke-width="2"/>
+                  <path d="M42 118h36" stroke="#ff7424" stroke-width="2" opacity=".7"/>
+                  <rect x="66" y="110" width="18" height="28" rx="2" fill="#171d16" stroke="#394536"/>
+                </svg>
+                <span class="portrait-grid"></span>
+                <span class="portrait-tag">RONIN</span>
+              </div>
+              <div class="operator-stats">
+                <div class="op-row"><span>ACCURACY</span><b>87</b></div><div class="mini-bar"><i style="width:87%"></i></div>
+                <div class="op-row"><span>SURVIVAL</span><b>74</b></div><div class="mini-bar"><i style="width:74%"></i></div>
+                <div class="op-row"><span>MOBILITY</span><b>91</b></div><div class="mini-bar"><i style="width:91%"></i></div>
+                <div class="op-tags"><span>ASSAULT</span><span>RECON</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel loadout-panel">
+            <div class="panel-head"><span>DEPLOYMENT LOADOUT</span><em>2 WEAPONS</em></div>
+            <button class="loadout-card selected" data-weapon="rifle">
+              <span class="gun-icon rifle-icon"></span>
+              <span class="loadout-copy"><b>VX-9 HAVOC</b><em>ASSAULT RIFLE · 30 RDS</em></span>
+              <span class="loadout-stat">DMG <b>74</b></span>
+            </button>
+            <button class="loadout-card" data-weapon="smg">
+              <span class="gun-icon smg-icon"></span>
+              <span class="loadout-copy"><b>HORNET MP-5</b><em>SUBMACHINE GUN · 40 RDS</em></span>
+              <span class="loadout-stat">RPM <b>900</b></span>
+            </button>
+            <div class="loadout-perks"><span>◈ FAST RELOAD</span><span>◈ LIGHT FRAME</span><span>◈ TRACKER</span></div>
+          </section>
+
+          <section class="panel intel-panel">
+            <div class="panel-head"><span>ISLAND INTEL</span><em>LIVE</em></div>
+            <div class="intel-grid">
+              <div><span>MAP</span><b>FALLEN CAY</b></div>
+              <div><span>HOSTILES</span><b id="lobbyHostiles">24</b></div>
+              <div><span>THREAT</span><b class="hot">HIGH</b></div>
+              <div><span>WEATHER</span><b>CLEAR</b></div>
+            </div>
+            <div class="intel-lines"></div>
+          </section>
+        </aside>
+      </main>
+
+      <footer class="lobby-footer">
+        <div class="footer-left"><span class="online-dot"></span> SERVERS ONLINE <i></i> <span>BUILD 4.1.7</span></div>
+        <div class="footer-controls">
+          <span><kbd>WASD</kbd> MOVE</span><span><kbd>MOUSE</kbd> AIM</span><span><kbd>LMB</kbd> FIRE</span><span><kbd>R</kbd> RELOAD</span><span><kbd>M</kbd> MODS</span>
+        </div>
+        <div class="footer-right">FREEFALL // OFFLINE SANDBOX</div>
+      </footer>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ MOD MENU -->
+    <section id="modMenu" class="mod-overlay hidden" aria-label="Mod menu">
+      <div class="mod-shell">
+        <div class="mod-scan"></div>
+        <header class="mod-head">
+          <div class="mod-brand">
+            <span class="mod-sigil"><i></i><i></i><i></i></span>
+            <div><b>FREEFALL <em>/</em> MOD MENU</b><span>CLIENT-SIDE SANDBOX · BUILD 4.1.7</span></div>
+          </div>
+          <div class="mod-head-right">
+            <span class="mod-status"><i></i> INJECTED</span>
+            <button id="modClose" class="mod-close" aria-label="Close mod menu">✕</button>
+          </div>
+        </header>
+
+        <div class="mod-body">
+          <nav class="mod-nav">
+            <span class="mod-nav-kicker">MODULES</span>
+            <button class="mod-tab active" data-tab="combat"><i>◈</i><span>COMBAT</span><em>07</em></button>
+            <button class="mod-tab" data-tab="visual"><i>◉</i><span>VISUAL</span><em>03</em></button>
+            <button class="mod-tab" data-tab="system"><i>⚙</i><span>SYSTEM</span><em>04</em></button>
+            <div class="mod-nav-foot">
+              <span>SESSION KEY</span>
+              <b>FF-8841-MOD</b>
+              <small>SANDBOX ONLY</small>
+            </div>
+          </nav>
+
+          <div class="mod-main">
+            <div class="mod-title-row">
+              <div><span class="mod-kicker">COMBAT OVERRIDES</span><h2>AIM &amp; DAMAGE</h2></div>
+              <button id="enableAll" class="enable-all"><span>◉</span> ENABLE ALL</button>
+            </div>
+
+            <div class="mod-panel active" data-panel="combat">
+              <div class="mod-list">
+                <div class="mod-row" data-mod="hologram">
+                  <span class="mod-icon holo-icon">◈</span>
+                  <div class="mod-copy"><b>HOLOGRAM</b><span>X-ray enemy silhouettes and distance tags through all geometry.</span><em class="tag">VISUAL</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="hologram"><span></span></label>
+                </div>
+                <div class="mod-row" data-mod="silent">
+                  <span class="mod-icon">➤</span>
+                  <div class="mod-copy"><b>SILENT AIM</b><span>Rounds redirect toward the nearest threat without moving your view.</span><em class="tag">STEALTH</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="silent"><span></span></label>
+                </div>
+                <div class="mod-row" data-mod="headshot">
+                  <span class="mod-icon">⊙</span>
+                  <div class="mod-copy"><b>AUTO HEADSHOT</b><span>Every confirmed hit is registered as a cranial impact for bonus damage.</span><em class="tag">DAMAGE</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="headshot"><span></span></label>
+                </div>
+                <div class="mod-row" data-mod="aimkill">
+                  <span class="mod-icon">✖</span>
+                  <div class="mod-copy"><b>AIM KILL</b><span>Lethal damage on any confirmed hit. One shot, one elimination.</span><em class="tag">DAMAGE</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="aimkill"><span></span></label>
+                </div>
+                <div class="mod-row" data-mod="aimbot">
+                  <span class="mod-icon">◎</span>
+                  <div class="mod-copy"><b>AIMBOT</b><span>Smooth magnetic lock toward the closest target while aiming down sights.</span><em class="tag">ASSIST</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="aimbot"><span></span></label>
+                </div>
+                <div class="mod-row" data-mod="infinite">
+                  <span class="mod-icon">∞</span>
+                  <div class="mod-copy"><b>INFINITE AMMO</b><span>Reserve ammunition is never consumed. Reloads stay physical.</span><em class="tag">UTILITY</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="infinite"><span></span></label>
+                </div>
+                <div class="mod-row" data-mod="norecoil">
+                  <span class="mod-icon">⌁</span>
+                  <div class="mod-copy"><b>NO RECOIL</b><span>Removes vertical kick and bloom. Crosshair remains perfectly stable.</span><em class="tag">CONTROL</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="norecoil"><span></span></label>
+                </div>
+              </div>
+
+              <div class="mod-sliders">
+                <div class="slider-head"><span>AIMBOT FIELD OF VIEW</span><b id="aimFovVal">32°</b></div>
+                <input id="aimFov" type="range" min="5" max="80" value="32" />
+                <div class="slider-head"><span>AIMBOT SMOOTHING</span><b id="aimSmoothVal">55%</b></div>
+                <input id="aimSmooth" type="range" min="5" max="100" value="55" />
+                <div class="slider-head"><span>SILENT AIM RANGE</span><b id="silentRangeVal">80 M</b></div>
+                <input id="silentRange" type="range" min="15" max="200" value="80" />
+              </div>
+            </div>
+
+            <div class="mod-panel" data-panel="visual">
+              <div class="mod-list">
+                <div class="mod-row" data-mod="tracers">
+                  <span class="mod-icon">✧</span>
+                  <div class="mod-copy"><b>NEON TRACERS</b><span>High-visibility synthetic tracers for every fired round.</span><em class="tag">FX</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="tracers" checked><span></span></label>
+                </div>
+                <div class="mod-row" data-mod="damageNumbers">
+                  <span class="mod-icon">#</span>
+                  <div class="mod-copy"><b>DAMAGE NUMBERS</b><span>Floating combat feedback showing impact damage.</span><em class="tag">HUD</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="damageNumbers" checked><span></span></label>
+                </div>
+                <div class="mod-row" data-mod="wireframe">
+                  <span class="mod-icon">▦</span>
+                  <div class="mod-copy"><b>WIREFRAME WORLD</b><span>Render the island as a tactical wireframe overlay.</span><em class="tag">DEBUG</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="wireframe"><span></span></label>
+                </div>
+              </div>
+              <div class="mod-visual-note">
+                <span>◉</span>
+                <div><b>VISUAL SANDBOX</b><p>Visual modules are cosmetic and only affect your local client. Hologram silhouettes render through geometry with additive depth.</p></div>
+              </div>
+            </div>
+
+            <div class="mod-panel" data-panel="system">
+              <div class="mod-list">
+                <div class="mod-row" data-mod="noslow">
+                  <span class="mod-icon">⚡</span>
+                  <div class="mod-copy"><b>OVERCLOCK</b><span>+45% movement speed and unlimited sprint stamina.</span><em class="tag">MOVE</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="noslow"><span></span></label>
+                </div>
+                <div class="mod-row" data-mod="god">
+                  <span class="mod-icon">✚</span>
+                  <div class="mod-copy"><b>GOD MODE</b><span>Prevents all incoming damage. Healing feedback still plays.</span><em class="tag">SAFETY</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="god"><span></span></label>
+                </div>
+                <div class="mod-row" data-mod="slowmo">
+                  <span class="mod-icon">◷</span>
+                  <div class="mod-copy"><b>BULLET TIME</b><span>Slows the simulation to 35% for cinematic firefights.</span><em class="tag">TIME</em></div>
+                  <label class="switch"><input type="checkbox" data-modkey="slowmo"><span></span></label>
+                </div>
+              </div>
+              <div class="mod-danger">
+                <span>⚠</span>
+                <p><b>SANDBOX SIMULATION</b> — This menu only affects the offline AI sandbox in your own browser. It does not connect to, modify, or interact with any live game or other players.</p>
+              </div>
+            </div>
+
+            <div class="mod-footer">
+              <div class="mod-legend"><span><kbd>INSERT</kbd> CLOSE</span><span><kbd>M</kbd> TOGGLE</span><span class="mod-safe">NO SERVER CONNECTION</span></div>
+              <div class="mod-buttons">
+                <button id="modReset" class="mod-reset">RESET DEFAULTS</button>
+                <button id="modApply" class="mod-apply">APPLY &amp; CLOSE</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mod-sig">FFM//<span id="modClock">00:00:00</span></div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ SETTINGS -->
+    <section id="settings" class="settings-overlay hidden" aria-label="Settings">
+      <div class="settings-card">
+        <header><b>SETTINGS</b><button id="settingsClose">✕</button></header>
+        <div class="settings-body">
+          <label class="set-row"><span>MOUSE SENSITIVITY</span><input id="sensSlider" type="range" min="20" max="200" value="100"><b id="sensVal">1.00</b></label>
+          <label class="set-row"><span>MASTER VOLUME</span><input id="volSlider" type="range" min="0" max="100" value="70"><b id="volVal">70</b></label>
+          <label class="set-row"><span>SHADOWS</span><input id="shadowToggle" type="checkbox" checked><b>ON</b></label>
+          <label class="set-row"><span>INVERT LOOK Y</span><input id="invertToggle" type="checkbox"><b>OFF</b></label>
+          <div class="set-note">Graphics auto-scale to your device. For best results use a desktop browser with hardware acceleration.</div>
+        </div>
+        <footer><button id="settingsApply" class="set-apply">DONE</button></footer>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ PAUSE / RESULT / DEPLOY -->
+    <section id="pause" class="pause-overlay hidden">
+      <div class="pause-card">
+        <span class="pause-kicker">SIMULATION PAUSED</span>
+        <h2>TACTICAL HOLD</h2>
+        <div class="pause-stats"><div><span>KILLS</span><b id="pauseKills">0</b></div><div><span>TIME</span><b id="pauseTime">08:00</b></div><div><span>ACCURACY</span><b id="pauseAcc">0%</b></div></div>
+        <button id="resumeBtn" class="pause-primary">RESUME OPERATION</button>
+        <button id="pauseModBtn" class="pause-secondary">OPEN MOD MENU</button>
+        <button id="quitBtn" class="pause-quit">ABANDON &amp; RETURN TO LOBBY</button>
+      </div>
+    </section>
+
+    <section id="result" class="result-overlay hidden">
+      <div class="result-card">
+        <span id="resultKicker" class="result-kicker">OPERATION COMPLETE</span>
+        <h2 id="resultTitle">LAST ONE STANDING</h2>
+        <p id="resultCopy">The island is clear. All hostile operators have been neutralized.</p>
+        <div class="result-grid">
+          <div><span>ELIMINATIONS</span><b id="resKills">0</b></div>
+          <div><span>ACCURACY</span><b id="resAcc">0%</b></div>
+          <div><span>HEADSHOTS</span><b id="resHeads">0</b></div>
+          <div><span>TIME</span><b id="resTime">0:00</b></div>
+        </div>
+        <div class="result-actions">
+          <button id="redeployBtn" class="result-primary">REDEPLOY</button>
+          <button id="lobbyBtn" class="result-secondary">RETURN TO LOBBY</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="deploy" class="deploy hidden">
+      <div class="deploy-bars"></div>
+      <div class="deploy-text"><span>INSERTION COMPLETE</span><b>WELCOME TO FALLEN CAY</b><em>OBJECTIVE: ELIMINATE 20 HOSTILES</em></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════ MOBILE -->
+    <div id="mobileControls" class="mobile-controls hidden">
+      <div id="joystick" class="joystick"><span class="joy-ring"></span><span id="joyKnob" class="joy-knob"></span></div>
+      <div class="touch-actions">
+        <button id="touchFire" class="touch-btn fire">FIRE</button>
+        <button id="touchAds" class="touch-btn ads">AIM</button>
+        <button id="touchReload" class="touch-btn small">R</button>
+        <button id="touchJump" class="touch-btn small">▲</button>
+        <button id="touchSwitch" class="touch-btn small">⇄</button>
+        <button id="touchMod" class="touch-btn small">MOD</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/game.js"></script>
+</body>
+</html>
