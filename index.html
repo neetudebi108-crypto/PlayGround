@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0d12" />
+<meta name="description" content="FIREZONE: Open World Battle Royale — a 1 km² 3D shooter with loot, vehicles of war, and 24-player solo BR." />
+<title>FIREZONE — Open World Battle Royale</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="game-canvas"></canvas>
+  <div id="vignette"></div>
+  <div id="damage-flash"></div>
+  <div id="low-health"></div>
+
+  <!-- ================= HUD ================= -->
+  <div id="hud" class="hidden" aria-live="polite">
+    <div class="hud-top-left">
+      <div class="minimap-shell">
+        <canvas id="minimap" width="240" height="240"></canvas>
+        <div class="minimap-ring"></div>
+        <div class="minimap-compass">N</div>
+      </div>
+      <div class="zone-chip">
+        <span id="zone-phase">ZONE 1</span>
+        <strong id="zone-timer">00:30</strong>
+      </div>
+      <div id="fps-meter" class="fps-meter"></div>
+      <button id="btn-pause" class="hud-pause" type="button" aria-label="Pause match">II</button>
+    </div>
+
+    <div class="hud-top-center">
+      <div class="match-info">
+        <span class="info-block"><b id="alive-count">24</b> ALIVE</span>
+        <i class="sep"></i>
+        <span class="info-block"><b id="kill-count">0</b> KILLS</span>
+        <i class="sep"></i>
+        <span class="info-block map-chip">1 KM²</span>
+      </div>
+      <div class="compass-wrap">
+        <div class="compass-strip" id="compass-strip"></div>
+        <div class="compass-pointer"></div>
+      </div>
+    </div>
+
+    <div class="hud-top-right">
+      <div class="killfeed" id="killfeed"></div>
+    </div>
+
+    <div id="crosshair" class="crosshair">
+      <i class="ch ch-t"></i><i class="ch ch-b"></i><i class="ch ch-l"></i><i class="ch ch-r"></i>
+      <span class="ch-dot"></span>
+    </div>
+    <div id="hitmarker" class="hitmarker"><i></i><i></i><i></i><i></i></div>
+    <div id="damage-numbers"></div>
+
+    <div id="pickup-prompt" class="pickup-prompt hidden">
+      <kbd>E</kbd>
+      <span id="pickup-action">PICK UP</span>
+      <strong id="pickup-name">AK47</strong>
+      <small id="pickup-sub">ASSAULT RIFLE</small>
+    </div>
+
+    <div id="banner" class="banner hidden">
+      <span id="banner-kicker">SYSTEM</span>
+      <strong id="banner-text">MATCH START</strong>
+    </div>
+
+    <div id="storm-warning" class="storm-warning hidden">
+      <span class="storm-icon">!</span>
+      <div><strong>OUTSIDE THE SAFE ZONE</strong><small>MOVE TO THE CIRCLE — TAKING STORM DAMAGE</small></div>
+    </div>
+
+    <div class="hud-bottom-left">
+      <div class="health-card">
+        <div class="health-row">
+          <span class="health-label">HEALTH</span>
+          <strong id="health-value">200</strong><small>/ 200</small>
+          <span id="armor-chip" class="armor-chip hidden">+ ARMOR</span>
+        </div>
+        <div class="health-bar">
+          <div id="health-fill" class="health-fill"></div>
+          <div class="health-ticks"></div>
+          <div class="health-shine"></div>
+        </div>
+        <div class="heal-row">
+          <kbd>F</kbd><span>MEDKIT</span><b id="medkit-count">1</b>
+          <div id="heal-progress" class="heal-progress hidden"><i></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud-bottom-center">
+      <div class="weapon-hud">
+        <div class="weapon-cat" id="weapon-cat">ASSAULT RIFLE</div>
+        <div class="weapon-name" id="weapon-name">AK47</div>
+        <div class="ammo-row">
+          <strong id="ammo-mag">30</strong><span class="slash">/</span><small id="ammo-reserve">90</small>
+        </div>
+        <div class="weapon-slots" id="weapon-slots"></div>
+        <div id="reload-bar" class="reload-bar hidden"><i></i><span>RELOADING</span></div>
+      </div>
+    </div>
+
+    <div class="hud-bottom-right">
+      <div class="controls-hint">
+        <div><kbd>WASD</kbd> MOVE</div>
+        <div><kbd>SHIFT</kbd> SPRINT</div>
+        <div><kbd>SPACE</kbd> JUMP</div>
+        <div><kbd>RMB</kbd> AIM</div>
+        <div><kbd>R</kbd> RELOAD</div>
+        <div><kbd>ESC</kbd> PAUSE</div>
+      </div>
+    </div>
+
+    <!-- Touch controls -->
+    <div id="mobile-controls" class="mobile-controls hidden">
+      <div id="move-zone" class="move-zone">
+        <div class="move-ring"></div>
+        <div id="move-knob" class="move-knob"></div>
+        <span class="move-label">MOVE</span>
+      </div>
+      <div id="look-zone" class="look-zone"></div>
+      <button id="btn-fire" class="mbtn mbtn-fire" aria-label="Fire">FIRE</button>
+      <button id="btn-ads" class="mbtn mbtn-ads" aria-label="Aim">AIM</button>
+      <button id="btn-reload" class="mbtn mbtn-small btn-reload" aria-label="Reload">R</button>
+      <button id="btn-jump" class="mbtn mbtn-small btn-jump" aria-label="Jump">JUMP</button>
+      <button id="btn-crouch" class="mbtn mbtn-small btn-crouch" aria-label="Crouch">C</button>
+      <button id="btn-heal" class="mbtn mbtn-small btn-heal" aria-label="Heal">+</button>
+      <button id="btn-pickup" class="mbtn mbtn-small btn-pickup" aria-label="Pick up">E</button>
+      <button id="btn-swap" class="mbtn mbtn-small btn-swap" aria-label="Swap weapon">SWAP</button>
+    </div>
+
+    <div id="scope-overlay" class="scope-overlay hidden">
+      <div class="scope-lens"></div>
+      <div class="scope-line scope-h"></div>
+      <div class="scope-line scope-v"></div>
+      <div class="scope-mildots"></div>
+      <div class="scope-info">AWM • 8×</div>
+      <div class="scope-range"><span>100</span><span>200</span><span>300</span><span>400</span></div>
+    </div>
+  </div>
+
+  <!-- ================= LOBBY ================= -->
+  <div id="lobby" class="screen lobby-screen hidden">
+    <div class="lobby-shade"></div>
+    <header class="lobby-topbar">
+      <div class="brand">
+        <div class="brand-mark">FZ</div>
+        <div class="brand-copy">
+          <strong>FIREZONE</strong>
+          <span>OPEN WORLD BATTLE ROYALE</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="online-pill"><i></i> 24 PLAYERS</div>
+        <button id="lobby-settings-btn" class="ghost-btn">SETTINGS</button>
+        <div class="profile-chip">
+          <span class="avatar">R</span>
+          <div><strong id="profile-name">ROOKIE</strong><small id="profile-matches">0 MATCHES</small></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="lobby-content">
+      <aside class="lobby-panel rank-panel">
+        <div class="panel-kicker">BATTLE ROYALE</div>
+        <h2>BR RANK</h2>
+        <div class="rank-badge" id="rank-badge">
+          <div class="rank-shield">
+            <span id="rank-letter">B</span>
+          </div>
+          <div class="rank-glow"></div>
+        </div>
+        <div class="rank-tier" id="rank-tier">BRONZE</div>
+        <div class="rank-points"><strong id="rank-points">0</strong> RP</div>
+        <div class="rank-progress"><i id="rank-fill"></i></div>
+        <div class="rank-next"><span id="rank-next-label">500 RP TO SILVER</span><b id="rank-next-value">0 / 500</b></div>
+        <div class="lifetime-stats">
+          <div><span>MATCHES</span><strong id="stat-matches">0</strong></div>
+          <div><span>WINS</span><strong id="stat-wins">0</strong></div>
+          <div><span>KILLS</span><strong id="stat-kills">0</strong></div>
+        </div>
+        <div class="rank-note">TOP 10 FINISHES AND KILLS EARN RANK POINTS</div>
+      </aside>
+
+      <main class="lobby-hero">
+        <div class="season-tag"><i></i> SEASON 01 • OPEN WORLD</div>
+        <h1 class="game-title">FIRE<span>ZONE</span></h1>
+        <p class="tagline">One island. 24 survivors. Everything you can carry.</p>
+
+        <div class="map-stats">
+          <div><strong>1.0</strong><span>KM² MAP</span></div>
+          <div><strong>24</strong><span>PLAYERS</span></div>
+          <div><strong>5</strong><span>HOT ZONES</span></div>
+          <div><strong>∞</strong><span>WAYS TO WIN</span></div>
+        </div>
+
+        <div class="poi-strip">
+          <span>FACTORY</span><i></i><span>PEAK</span><i></i><span>CLOCK TOWER</span><i></i><span>RIM RAM VILLAGE</span><i></i><span>RIVERSIDE</span>
+        </div>
+
+        <section class="loadout-section">
+          <div class="section-head">
+            <div><span class="panel-kicker">DROP KIT</span><h3>CHOOSE YOUR STARTING WEAPON</h3></div>
+            <small>ALL THREE SPAWN AS LOOT IN THE WORLD</small>
+          </div>
+          <div class="weapon-cards" id="weapon-cards">
+            <button class="weapon-card selected" data-weapon="ak47" type="button">
+              <span class="weapon-tag">ASSAULT</span>
+              <svg class="gun-icon" viewBox="0 0 130 48" aria-hidden="true">
+                <path d="M4 20h12l6-7h27l5 7h26v7H66l-4 11H48l-3-11H31l-2 9h-9l-1-9H4z"/>
+                <path d="M58 27h10l-3 15H55z"/>
+                <path d="M79 20h10v5H79z"/>
+              </svg>
+              <strong>AK47</strong>
+              <span class="weapon-role">Hard-hitting full auto</span>
+              <div class="stat-bars">
+                <label>DMG <i><b style="width:82%"></b></i></label>
+                <label>RATE <i><b style="width:66%"></b></i></label>
+                <label>RANGE <i><b style="width:72%"></b></i></label>
+              </div>
+              <span class="select-mark">SELECTED</span>
+            </button>
+
+            <button class="weapon-card" data-weapon="awm" type="button">
+              <span class="weapon-tag">SNIPER</span>
+              <svg class="gun-icon" viewBox="0 0 130 48" aria-hidden="true">
+                <path d="M3 22h19l4-5h15l4 5h56v5H78l-4 10H59l-3-10H40l-4 12H24l2-12H3z"/>
+                <rect x="38" y="9" width="27" height="6" rx="2"/>
+                <rect x="58" y="13" width="13" height="4"/>
+                <circle cx="51" cy="12" r="6"/>
+                <path d="M94 22h18v4H94z"/>
+              </svg>
+              <strong>AWM</strong>
+              <span class="weapon-role">One shot. One kill.</span>
+              <div class="stat-bars">
+                <label>DMG <i><b style="width:100%"></b></i></label>
+                <label>RATE <i><b style="width:18%"></b></i></label>
+                <label>RANGE <i><b style="width:100%"></b></i></label>
+              </div>
+              <span class="select-mark">SELECTED</span>
+            </button>
+
+            <button class="weapon-card" data-weapon="ump" type="button">
+              <span class="weapon-tag">SMG</span>
+              <svg class="gun-icon" viewBox="0 0 130 48" aria-hidden="true">
+                <path d="M9 20h10l4-5h30l5 5h23v7H63l-5 12H45l-3-12H30l-2 10h-8l-1-10H9z"/>
+                <path d="M58 27h9l-2 15H54z"/>
+                <path d="M77 20h15v6H77z"/>
+              </svg>
+              <strong>UMP</strong>
+              <span class="weapon-role">Fast, stable close range</span>
+              <div class="stat-bars">
+                <label>DMG <i><b style="width:58%"></b></i></label>
+                <label>RATE <i><b style="width:84%"></b></i></label>
+                <label>RANGE <i><b style="width:48%"></b></i></label>
+              </div>
+              <span class="select-mark">SELECTED</span>
+            </button>
+          </div>
+        </section>
+
+        <button id="deploy-btn" class="deploy-btn" type="button">
+          <span class="deploy-main">DEPLOY</span>
+          <span class="deploy-sub">SOLO BATTLE ROYALE • 1 KM² ISLAND</span>
+          <i class="deploy-shine"></i>
+        </button>
+        <div class="deploy-note">WASD TO MOVE • MOUSE TO AIM • CLICK TO FIRE • TOUCH CONTROLS ON MOBILE</div>
+      </main>
+
+      <aside class="lobby-panel settings-panel" id="settings-panel">
+        <div class="panel-kicker">CONTROL ROOM</div>
+        <h2>SETTINGS</h2>
+
+        <label class="setting-row">
+          <div class="setting-label"><span>SENSITIVITY</span><b data-value-for="sensitivity">1.00</b></div>
+          <input type="range" min="0.20" max="2.00" step="0.05" value="1.00" data-setting="sensitivity" />
+          <small>Mouse and touch look speed</small>
+        </label>
+
+        <label class="setting-row">
+          <div class="setting-label"><span>AIM SENSITIVITY</span><b data-value-for="adsSensitivity">0.75</b></div>
+          <input type="range" min="0.20" max="1.50" step="0.05" value="0.75" data-setting="adsSensitivity" />
+          <small>Look speed while aiming down sights</small>
+        </label>
+
+        <label class="setting-row">
+          <div class="setting-label"><span>MASTER VOLUME</span><b data-value-for="volume">70</b></div>
+          <input type="range" min="0" max="100" step="1" value="70" data-setting="volume" />
+          <small>Weapons, hits and UI sounds</small>
+        </label>
+
+        <label class="setting-row select-row">
+          <div class="setting-label"><span>GRAPHICS</span></div>
+          <select data-setting="quality">
+            <option value="high">HIGH — SHADOWS + DETAIL</option>
+            <option value="low">LOW — MAX PERFORMANCE</option>
+          </select>
+        </label>
+
+        <label class="toggle-row">
+          <span>INVERT LOOK Y</span>
+          <input type="checkbox" data-setting="invertY" />
+          <i></i>
+        </label>
+
+        <div class="guide-box">
+          <h4>HOW TO PLAY</h4>
+          <p>Loot weapons and medkits, stay inside the shrinking zone, and be the last of 24 alive. Every kill and high placement earns BR Rank Points.</p>
+          <div class="guide-keys"><kbd>E</kbd> LOOT <kbd>F</kbd> HEAL <kbd>R</kbd> RELOAD <kbd>1</kbd><kbd>2</kbd> SWAP</div>
+        </div>
+
+        <div class="lobby-footer-links">
+          <span>v1.0.0</span><span>•</span><span>LOCAL SAVE</span>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= PAUSE ================= -->
+  <div id="pause" class="modal hidden">
+    <div class="modal-card pause-card">
+      <div class="panel-kicker">TACTICAL PAUSE</div>
+      <h2>PAUSED</h2>
+      <div class="pause-grid">
+        <div>
+          <h3>QUICK SETTINGS</h3>
+          <label class="setting-row compact">
+            <div class="setting-label"><span>SENSITIVITY</span><b data-value-for="sensitivity">1.00</b></div>
+            <input type="range" min="0.20" max="2.00" step="0.05" value="1.00" data-setting="sensitivity" />
+          </label>
+          <label class="setting-row compact">
+            <div class="setting-label"><span>AIM SENSITIVITY</span><b data-value-for="adsSensitivity">0.75</b></div>
+            <input type="range" min="0.20" max="1.50" step="0.05" value="0.75" data-setting="adsSensitivity" />
+          </label>
+          <label class="setting-row compact">
+            <div class="setting-label"><span>VOLUME</span><b data-value-for="volume">70</b></div>
+            <input type="range" min="0" max="100" step="1" value="70" data-setting="volume" />
+          </label>
+          <label class="toggle-row compact-toggle">
+            <span>INVERT LOOK Y</span>
+            <input type="checkbox" data-setting="invertY" />
+            <i></i>
+          </label>
+        </div>
+        <div class="pause-stats">
+          <h3>MATCH STATUS</h3>
+          <div><span>ALIVE</span><strong id="pause-alive">24</strong></div>
+          <div><span>KILLS</span><strong id="pause-kills">0</strong></div>
+          <div><span>DAMAGE</span><strong id="pause-damage">0</strong></div>
+          <div><span>SURVIVED</span><strong id="pause-time">00:00</strong></div>
+          <div class="pause-tip">TIP: TAP <kbd>RMB</kbd> TO AIM. AIMING REDUCES SPREAD AND RECOIL.</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="resume-btn" class="primary-btn" type="button">RESUME MATCH</button>
+        <button id="quit-btn" class="ghost-btn danger" type="button">QUIT TO LOBBY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= RESULTS ================= -->
+  <div id="results" class="screen results-screen hidden">
+    <div class="results-bg"></div>
+    <div class="results-card">
+      <div id="result-kicker" class="panel-kicker">MATCH COMPLETE</div>
+      <h2 id="result-title">BOOYAH!</h2>
+      <div class="result-place-wrap">
+        <span class="result-hash">#</span><strong id="result-place">1</strong><small id="result-place-total">/ 24</small>
+      </div>
+      <div class="result-sub" id="result-sub">LAST ONE STANDING</div>
+
+      <div class="result-stats">
+        <div><span>KILLS</span><strong id="result-kills">0</strong></div>
+        <div><span>DAMAGE</span><strong id="result-damage">0</strong></div>
+        <div><span>SURVIVED</span><strong id="result-time">00:00</strong></div>
+        <div><span>ACCURACY</span><strong id="result-acc">0%</strong></div>
+      </div>
+
+      <div class="rank-result">
+        <div class="rank-result-top">
+          <span>BR RANK</span>
+          <strong id="result-rank-gain">+0 RP</strong>
+        </div>
+        <div class="rank-progress"><i id="result-rank-fill"></i></div>
+        <div class="rank-result-bottom">
+          <span id="result-rank-tier">BRONZE</span>
+          <span id="result-rank-points">0 RP</span>
+        </div>
+      </div>
+
+      <div class="result-actions">
+        <button id="play-again-btn" class="primary-btn" type="button">PLAY AGAIN</button>
+        <button id="back-lobby-btn" class="ghost-btn" type="button">BACK TO LOBBY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LOADING ================= -->
+  <div id="loading" class="screen loading-screen">
+    <div class="loading-grid"></div>
+    <div class="loading-center">
+      <div class="brand-mark large">FZ</div>
+      <h1>FIRE<span>ZONE</span></h1>
+      <div class="loading-sub">OPEN WORLD BATTLE ROYALE</div>
+      <div class="loader-bar"><i id="loader-fill"></i></div>
+      <div class="loader-status"><span id="loader-text">GENERATING 1 KM² ISLAND</span><b id="loader-pct">0%</b></div>
+      <div class="loader-tip" id="loader-tip">TIP: HIGH GROUND WINS FIGHTS. TAKE THE PEAK.</div>
+    </div>
+    <div class="loading-foot">WEBGL • THREE.JS • PROCEDURAL WORLD</div>
+  </div>
+
+  <div id="rotate-hint" class="rotate-hint hidden">
+    <div class="rotate-icon">↻</div>
+    <strong>ROTATE FOR FULL VIEW</strong>
+    <span>Landscape gives you the best field of view.</span>
+    <button id="dismiss-rotate" type="button">CONTINUE</button>
+  </div>
+
+  <div id="fade" class="fade"></div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
